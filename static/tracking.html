@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Orbit Tracking</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body style="padding: 2rem 3rem;">
+    
+    <div class="tracking-header">
+        <div>
+            <h1>🛰️ Tactical Tracking Radar</h1>
+            <p style="color: var(--text-secondary);" id="satellite-info">Loading...</p>
+        </div>
+        <a href="/" class="back-link">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Return to Dashboard
+        </a>
+    </div>
+
+    <!-- Space Weather Alert -->
+    <div id="space-weather-alert" class="space-weather-banner hidden" style="flex-wrap: wrap;">
+        <div class="sw-content">
+            <div class="sw-icon">☀️</div>
+            <div class="sw-info">
+                <h3 id="sw-title">Space Weather: Loading...</h3>
+                <p id="sw-desc">Fetching latest geomagnetic data...</p>
+            </div>
+        </div>
+        <div class="sw-kp">
+            <span class="kp-label">Kp Index</span>
+            <span id="sw-kp-value" class="kp-value">-</span>
+        </div>
+        <div id="sw-legend" style="display: flex; gap: 1rem; margin-top: 1rem; font-size: 0.85rem; justify-content: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; width: 100%; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #34d399; border-radius: 50%;"></span> Quiet</div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fbbf24; border-radius: 50%;"></span> Active</div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fb923c; border-radius: 50%;"></span> Minor Storm</div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #f87171; border-radius: 50%;"></span> Mod/Strong Storm</div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fca5a5; border-radius: 50%; box-shadow: 0 0 5px #fca5a5;"></span> Severe/Extreme</div>
+        </div>
+    </div>
+
+    <div class="metrics-container" style="margin-bottom: 2rem;">
+        <div class="metric-card">
+            <h3>Latitude</h3>
+            <p id="lat-val" class="metric-value">...</p>
+        </div>
+        <div class="metric-card">
+            <h3>Longitude</h3>
+            <p id="lon-val" class="metric-value">...</p>
+        </div>
+        <div class="metric-card">
+            <h3>Altitude</h3>
+            <p id="alt-val" class="metric-value">...</p>
+        </div>
+    </div>
+    <div class="observer-panel" style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">🔭 Observer Visibility Check</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: -0.5rem; margin-bottom: 1rem;">Enter coordinates manually, select a preset, or click anywhere on the map to place an observer.</p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Predefined Locations</label>
+                <select id="obs-preset" style="width: 100%; padding: 0.5rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 6px;">
+                    <option value="">-- Select or Click on Map --</option>
+                    <option value="39.89,-104.99">Buckley Space Force Base, USA</option>
+                    <option value="40.39,49.88">Baku Tracking Station, Azerbaijan</option>
+                    <option value="54.14,-0.40">RAF Fylingdales, UK</option>
+                    <option value="36.00,-15.00">Ship: Atlantic Ocean Center</option>
+                    <option value="-33.86,151.20">Sydney Observatory, Australia</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 100px;">
+                <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Latitude</label>
+                <input type="number" id="obs-lat" step="0.0001" placeholder="e.g. 39.89" style="width: 100%; padding: 0.5rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 6px;">
+            </div>
+            <div style="flex: 1; min-width: 100px;">
+                <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Longitude</label>
+                <input type="number" id="obs-lon" step="0.0001" placeholder="e.g. -104.99" style="width: 100%; padding: 0.5rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 6px;">
+            </div>
+            <div>
+                <button id="obs-check-btn" class="btn-primary" style="margin: 0;">Check Visibility</button>
+            </div>
+        </div>
+        <div id="obs-result" style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 0.9rem; display: none;">
+            <!-- Result goes here -->
+        </div>
+    </div>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <button id="refresh-btn" class="btn-primary" style="margin: 0;">🔄 Update Location</button>
+        <div id="status" style="align-self: center; color: var(--text-secondary);"></div>
+    </div>
+
+    <div id="leaflet-map"></div>
+    <script src="/js/tracking.js?v=4"></script>
+</body>
+</html>

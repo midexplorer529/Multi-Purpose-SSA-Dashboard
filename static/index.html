@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic SSA Dashboard</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Use import maps for Three.js -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🛰️ SSA Dashboard</h2>
+            </div>
+            
+            <form id="filter-form" class="filter-form">
+                <div class="form-group">
+                    <label>🔍 Search Satellite Name or ID</label>
+                    <input type="text" id="search-input" placeholder="e.g. STARLINK, ISS, 25544...">
+                </div>
+                
+                <div class="form-group">
+                    <label>🪐 Orbit Regime</label>
+                    <div class="filter-toolbar">
+                        <input type="text" class="filter-search" placeholder="Search..." onkeyup="filterSelectOptions('regime-select', this.value)">
+                        <div class="filter-actions">
+                            <button type="button" onclick="selectAll('regime-select', true)">Choose All</button>
+                            <button type="button" onclick="selectAll('regime-select', false)">Clear</button>
+                        </div>
+                    </div>
+                    <select id="regime-select" multiple class="multi-select">
+                        <!-- Options populated by JS -->
+                    </select>
+                    <small>Hold Ctrl/Cmd to select multiple manually</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🛸 Object Type</label>
+                    <div class="filter-toolbar">
+                        <input type="text" class="filter-search" placeholder="Search..." onkeyup="filterSelectOptions('type-select', this.value)">
+                        <div class="filter-actions">
+                            <button type="button" onclick="selectAll('type-select', true)">Choose All</button>
+                            <button type="button" onclick="selectAll('type-select', false)">Clear</button>
+                        </div>
+                    </div>
+                    <select id="type-select" multiple class="multi-select">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="nato-checkbox">
+                    <label for="nato-checkbox">🛡️ Only NATO Member States</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Country</label>
+                    <div class="filter-toolbar">
+                        <input type="text" class="filter-search" placeholder="Search..." onkeyup="filterSelectOptions('country-select', this.value)">
+                        <div class="filter-actions">
+                            <button type="button" onclick="selectAll('country-select', true)">Choose All</button>
+                            <button type="button" onclick="selectAll('country-select', false)">Clear</button>
+                        </div>
+                    </div>
+                    <select id="country-select" multiple class="multi-select">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">Apply Filters 🚀</button>
+            </form>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="status-message" class="status-message hidden"></div>
+            
+            <!-- Space Weather Alert -->
+            <div id="space-weather-alert" class="space-weather-banner hidden" style="flex-wrap: wrap;">
+                <div class="sw-content">
+                    <div class="sw-icon">☀️</div>
+                    <div class="sw-info">
+                        <h3 id="sw-title">Space Weather: Loading...</h3>
+                        <p id="sw-desc">Fetching latest geomagnetic data...</p>
+                    </div>
+                </div>
+                <div class="sw-kp">
+                    <span class="kp-label">Kp Index</span>
+                    <span id="sw-kp-value" class="kp-value">-</span>
+                </div>
+                <div id="sw-legend" style="display: flex; gap: 1rem; margin-top: 1rem; font-size: 0.85rem; justify-content: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; width: 100%; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #34d399; border-radius: 50%;"></span> Quiet</div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fbbf24; border-radius: 50%;"></span> Active</div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fb923c; border-radius: 50%;"></span> Minor Storm</div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #f87171; border-radius: 50%;"></span> Mod/Strong Storm</div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;"><span style="display: inline-block; width: 12px; height: 12px; background: #fca5a5; border-radius: 50%; box-shadow: 0 0 5px #fca5a5;"></span> Severe/Extreme</div>
+                </div>
+            </div>
+            
+            <!-- Metrics -->
+            <div class="metrics-container">
+                <div class="metric-card">
+                    <h3>Total Number of Objects</h3>
+                    <p id="metric-total" class="metric-value">Loading...</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Number of Active Satellites</h3>
+                    <p id="metric-active" class="metric-value">Loading...</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Number of Debris</h3>
+                    <p id="metric-debris" class="metric-value">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Charts Row (Orbit Density & Top Countries) -->
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h3>Orbit Density by Object Type</h3>
+                    <div id="orbit-chart"></div>
+                </div>
+                <div class="chart-container">
+                    <h3>Top 5 Countries by Object Type</h3>
+                    <div id="country-chart"></div>
+                </div>
+            </div>
+
+            <!-- Global Situational Awareness Screen -->
+            <div class="map-section">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:0.75rem;">
+                    <h2 style="margin:0;">Global Situational Awareness Screen</h2>
+                    <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <span id="live-badge" style="
+                            display:inline-flex; align-items:center; gap:0.4rem;
+                            background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4);
+                            color:#22c55e; font-size:0.8rem; font-weight:600; letter-spacing:0.05em;
+                            padding:0.3rem 0.8rem; border-radius:999px;
+                            animation: pulse-badge 2s infinite;">
+                            🛰️ Loading...
+                        </span>
+                        <div style="display:flex; gap:0.75rem; font-size:0.78rem; color:#94a3b8; flex-wrap:wrap;">
+                            <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:50%;margin-right:4px;"></span>Satellite</span>
+                            <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:50%;margin-right:4px;"></span>Other Object</span>
+                        </div>
+                        <span style="font-size:0.75rem; color:#64748b;">Updates every 10s</span>
+                    </div>
+                </div>
+                <style>
+                    @keyframes pulse-badge {
+                        0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+                        50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+                    }
+                </style>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchMapTab('3d')">🌍 3D Sphere</button>
+                    <button class="tab-btn" onclick="switchMapTab('2d')">🗺️ 2D Map</button>
+                </div>
+                <div class="map-container">
+                    <div id="globe-3d" class="map-view active"></div>
+                    <div id="map-2d" class="map-view"></div>
+                </div>
+            </div>
+
+            <!-- Filtered Objects Table -->
+            <div class="table-section">
+                <h2>Filtered Objects</h2>
+                <div class="table-container">
+                    <table id="objects-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>NORAD ID</th>
+                                <th>Type</th>
+                                <th>Owner</th>
+                                <th>Orbit</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js" type="module"></script>
+</body>
+</html>
