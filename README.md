@@ -417,18 +417,6 @@ Possible future modules include:
 
 ---
 
-## 📸 Screenshots
-
-Recommended screenshots for the repository:
-
-1. Global 3D SSA screen
-2. 2D live object map
-3. Tactical Tracking Radar
-4. Ground-track and observer visibility analysis
-5. Space-weather panel
-
----
-
 ## 📌 Project Status
 
 This project is an independently developed SSA prototype and ongoing learning/research project.
