@@ -462,15 +462,21 @@ def orbit_track(norad_id: str, name: str = "Target", past_minutes: int = 90, fut
     to prevent drawing a horizontal line across the entire map.
     """
     satellite = None
-    line1, line2 = get_live_tle(norad_id)
-    
-    if line1 and line2:
-        satellite = EarthSatellite(line1, line2, name, ts)
+
+    # 1. Use pre-parsed dict (covers all ~16k objects, instant — no network call)
+    if norad_id in _sat_dict:
+        satellite = _sat_dict[norad_id][0]
     else:
-        sat_row = df_data[df_data['NORAD_CAT_ID'] == str(norad_id)]
-        if not sat_row.empty:
-            satellite = EarthSatellite.from_omm(ts, sat_row.iloc[0])
-            satellite.name = name
+        # 2. Try live TLE from Celestrak (only for objects not in the pre-loaded dict)
+        line1, line2 = get_live_tle(norad_id)
+        if line1 and line2:
+            satellite = EarthSatellite(line1, line2, name, ts)
+        else:
+            # 3. Fallback to OMM columns in df_data
+            sat_row = df_data[df_data['NORAD_CAT_ID'] == str(norad_id)]
+            if not sat_row.empty:
+                satellite = EarthSatellite.from_omm(ts, sat_row.iloc[0])
+                satellite.name = name
             
     if satellite is None:
         raise HTTPException(status_code=404, detail="Orbit data not found locally or via API")
@@ -637,15 +643,21 @@ def check_visibility(norad_id: str, lat: float, lon: float, name: str = "Target"
     Calculates the topocentric elevation and azimuth angles.
     """
     satellite = None
-    line1, line2 = get_live_tle(norad_id)
-    
-    if line1 and line2:
-        satellite = EarthSatellite(line1, line2, name, ts)
+
+    # 1. Use pre-parsed dict (instant — no network call)
+    if norad_id in _sat_dict:
+        satellite = _sat_dict[norad_id][0]
     else:
-        sat_row = df_data[df_data['NORAD_CAT_ID'] == str(norad_id)]
-        if not sat_row.empty:
-            satellite = EarthSatellite.from_omm(ts, sat_row.iloc[0])
-            satellite.name = name
+        # 2. Try live TLE from Celestrak
+        line1, line2 = get_live_tle(norad_id)
+        if line1 and line2:
+            satellite = EarthSatellite(line1, line2, name, ts)
+        else:
+            # 3. Fallback to OMM columns in df_data
+            sat_row = df_data[df_data['NORAD_CAT_ID'] == str(norad_id)]
+            if not sat_row.empty:
+                satellite = EarthSatellite.from_omm(ts, sat_row.iloc[0])
+                satellite.name = name
             
     if satellite is None:
         raise HTTPException(status_code=404, detail="Orbit data not found locally or via API")

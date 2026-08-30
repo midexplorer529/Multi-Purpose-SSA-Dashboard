@@ -28,11 +28,11 @@ async function fetchLocation() {
         document.getElementById('alt-val').textContent = data.elevation.toFixed(2) + ' km';
 
         updateMap(data.lat, data.lon, data.elevation);
-        
+
         if (document.getElementById('obs-lat')?.value && document.getElementById('obs-lon')?.value) {
             checkVisibility();
         }
-        
+
         statusEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
     } catch (error) {
         statusEl.textContent = 'Error: ' + error.message;
@@ -113,6 +113,8 @@ let pendingFutureSegments = null;
  * Handles the anti-meridian crossing by re-segmenting the coordinates.
  */
 async function fetchOrbitTrack() {
+    const statusEl = document.getElementById('status');
+    statusEl.textContent = '⏳ Loading orbit track...';
     try {
         const pastMin = 90;
         const futureMin = 90;
@@ -121,6 +123,7 @@ async function fetchOrbitTrack() {
             if (response.status === 404) {
                 alert("Predicted orbit API not found (404). Please stop and restart the Python backend server (main.py)!");
             }
+            statusEl.textContent = '⚠️ Orbit track unavailable';
             return;
         }
         const data = await response.json();
@@ -156,6 +159,8 @@ async function fetchOrbitTrack() {
         if (map) {
             drawPredictedTrack();
         }
+        statusEl.textContent = '✅ Orbit track loaded';
+        setTimeout(() => { if (statusEl.textContent === '✅ Orbit track loaded') statusEl.textContent = ''; }, 3000);
     } catch (e) {
         console.error("Failed to fetch orbit track", e);
     }
@@ -296,30 +301,30 @@ document.getElementById('obs-check-btn')?.addEventListener('click', () => {
 async function checkVisibility() {
     const latInput = document.getElementById('obs-lat')?.value;
     const lonInput = document.getElementById('obs-lon')?.value;
-    
+
     if (!latInput || !lonInput) {
         alert("Please enter both latitude and longitude or select on the map.");
         return;
     }
-    
+
     const lat = parseFloat(latInput);
     const lon = parseFloat(lonInput);
     updateObserverMarker(lat, lon);
-    
+
     try {
         const response = await fetch(`/api/visibility/${targetId}?lat=${lat}&lon=${lon}&name=${encodeURIComponent(targetName)}`);
-        
+
         const resultDiv = document.getElementById('obs-result');
         if (!resultDiv) return;
-        
+
         if (!response.ok) {
             const errData = await response.text();
             throw new Error(`API Error: ${response.status} ${errData}`);
         }
-        
+
         const data = await response.json();
         resultDiv.style.display = 'block';
-        
+
         if (data.visible) {
             resultDiv.style.background = 'rgba(34, 197, 94, 0.2)'; // Green tint
             resultDiv.style.border = '1px solid rgba(34, 197, 94, 0.5)';
